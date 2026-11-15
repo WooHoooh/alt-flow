@@ -1,1 +1,113 @@
+name: Build Alt Flow
 
+# Builds Windows, Android 32-bit (ARMv7) and Android 64-bit (ARM64), then merges them into ONE
+# .geode file. Run it from the Actions tab ("Run workflow") or just push.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: Windows
+            os: windows-latest
+
+          - name: Android32
+            os: ubuntu-latest
+            target: Android32
+
+          - name: Android64
+            os: ubuntu-latest
+            target: Android64
+
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # preflight: ids/versions/resources line up. logo: your image -> logo.png (skipped if absent)
+      - name: Preflight and logo
+        shell: bash
+        run: |
+          python -m pip install --quiet pillow
+          python tools/preflight.py
+          python tools/make_logo.py
+
+      - name: Build the mod
+        uses: geode-sdk/build-geode-mod@main
+        with:
+          combine: true
+          target: ${{ matrix.config.target }}
+
+  package:
+    name: Package builds
+    runs-on: ubuntu-latest
+    needs: ["build"]
+    # still package what did build if one platform failed; the check below then goes red
+    if: ${{ !cancelled() }}
+
+    steps:
+      - uses: geode-sdk/build-geode-mod/combine@main
+        id: build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Alt Flow
+          path: ${{ steps.build.outputs.build-output }}
+
+      - name: Check every platform is in the package
+        shell: bash
+        env:
+          OUT: ${{ steps.build.outputs.build-output }}
+        run: |
+          python3 - <<'PY'
+          import glob, json, os, sys, zipfile
+
+          out = os.environ["OUT"]
+          files = [out] if os.path.isfile(out) else sorted(glob.glob(os.path.join(out, "**", "*.geode"), recursive=True))
+          if not files:
+              print("::error title=Alt Flow::No .geode file found in the build output")
+              sys.exit(1)
+
+          missing = False
+          lines = ["## Alt Flow package", ""]
+          for path in files:
+              with zipfile.ZipFile(path) as z:
+                  names = z.namelist()
+                  info = json.loads(z.read("mod.json"))
+              lines += [f"`{os.path.basename(path)}` - {info.get('name')} {info.get('version')}", ""]
+              checks = [
+                  ("Windows", any(n.endswith(".dll") for n in names)),
+                  ("Android 64-bit (ARM64)", any(n.endswith(".android64.so") for n in names)),
+                  ("Android 32-bit (ARMv7)", any(n.endswith(".android32.so") for n in names)),
+              ]
+              for label, ok in checks:
+                  lines.append(f"- {'[ok]' if ok else '[MISSING]'} {label}")
+                  if not ok:
+                      missing = True
+                      print(f"::error title=Alt Flow::{label} is missing from the package - open that platform's job above and read its compile error")
+              has_logo = "logo.png" in names
+              lines.append(f"- {'[ok]' if has_logo else '[none]'} logo.png")
+              if not has_logo:
+                  print("::warning title=Alt Flow::No logo.png in the package - add your image to the repo as logo-source.webp (or .png/.jpg) and run again")
+              lines += ["", "<details><summary>files</summary>", "", *[f"- {n}" for n in names], "", "</details>"]
+
+          text = "\n".join(lines) + "\n"
+          print(text)
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as f:
+                  f.write(text)
+          sys.exit(1 if missing else 0)
+          PY
