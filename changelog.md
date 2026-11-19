@@ -1,3 +1,14 @@
+# v1.8.2
+- Modes page shows your own icons in your own colors on every tile, including modes that are off.
+
+# v1.8.1
+- Modes page is back to plain icon tiles (your own icons, no badges), in the new dark violet style.
+
+# v1.8.0
+- New control panel design: a clean dark card in the logo's violet, with a switch, segmented pages and an activity feed. It uses GD's own fonts.
+- Developer name is now Lumin.
+- Removed the panel color, glow and text size settings (the new design has one look). Panel size stays.
+
 # v1.7.0
 - Renamed from Voidius to **Alt Flow**. The mod id is now `alternate.altflow`, so settings start fresh.
 - New icon.

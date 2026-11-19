@@ -6,9 +6,9 @@
 	},
 	"id": "alternate.altflow",
 	"name": "Alt Flow",
-	"version": "v1.7.0",
-	"developer": "alternate",
-	"description": "Spam fast enough and it takes over, clicking at a steady rate you choose. Comes with an afterflow-style control panel.",
+	"version": "v1.8.2",
+	"developer": "Lumin",
+	"description": "Spam fast enough and it takes over, clicking at a steady rate you choose. Comes with a clean control panel.",
 	"tags": [
 		"cheat",
 		"gameplay"
@@ -21,7 +21,7 @@
 		"enabled": {
 			"type": "bool",
 			"name": "Enabled",
-			"description": "Also the pill at the top of the panel, or the Toggle key.",
+			"description": "Also the switch at the top of the panel, or the Toggle key.",
 			"default": true
 		},
 		"toggle-key": {
@@ -49,7 +49,7 @@
 		"replay-tutorial": {
 			"type": "bool",
 			"name": "Replay tutorial",
-			"description": "Turn on to see the animated tour again the next time you open the panel.",
+			"description": "Turn on to see the short tour again the next time you open the panel.",
 			"default": false
 		},
 		"show-cps": {
@@ -182,33 +182,7 @@
 		},
 		"ui-title": {
 			"type": "title",
-			"name": "Panel look"
-		},
-		"ui-primary-color": {
-			"type": "color",
-			"name": "Primary color",
-			"default": "#A855F7"
-		},
-		"ui-secondary-color": {
-			"type": "color",
-			"name": "Secondary color",
-			"default": "#D5B4FF"
-		},
-		"ui-surface-color": {
-			"type": "color",
-			"name": "Surface color",
-			"default": "#17131F"
-		},
-		"ui-text-color": {
-			"type": "color",
-			"name": "Text color",
-			"default": "#EFE7F7"
-		},
-		"ui-glow": {
-			"type": "bool",
-			"name": "Glow",
-			"description": "Soft accent glow around the panel.",
-			"default": true
+			"name": "Panel"
 		},
 		"ui-panel-size": {
 			"type": "int",
@@ -216,22 +190,6 @@
 			"default": 100,
 			"min": 60,
 			"max": 140
-		},
-		"ui-text-size": {
-			"type": "int",
-			"name": "Text size %",
-			"default": 100,
-			"min": 80,
-			"max": 140
 		}
-	},
-	"resources": {
-		"files": [
-			"resources/afterflow-body.fnt",
-			"resources/afterflow-body.png",
-			"resources/afterflow-display.fnt",
-			"resources/afterflow-display.png",
-			"resources/OFL.txt"
-		]
 	}
 }
