@@ -6,7 +6,7 @@
 	},
 	"id": "alternate.altflow",
 	"name": "Alt Flow",
-	"version": "v1.8.2",
+	"version": "v1.9.0",
 	"developer": "Lumin",
 	"description": "Spam fast enough and it takes over, clicking at a steady rate you choose. Comes with a clean control panel.",
 	"tags": [
@@ -135,6 +135,29 @@
 			"default": 10,
 			"min": 2,
 			"max": 60
+		},
+		"wave-title": {
+			"type": "title",
+			"name": "Wave"
+		},
+		"wave-path": {
+			"type": "string",
+			"name": "Wave path",
+			"description": "straight: the wave follows Go straight and stays level. up or down: ascending or descending wave spam, at the Wave CPS, tilted by Wave angle.",
+			"default": "straight",
+			"one-of": [
+				"straight",
+				"up",
+				"down"
+			]
+		},
+		"wave-angle": {
+			"type": "int",
+			"name": "Wave angle",
+			"description": "How steeply up and down tilt the wave spam, in degrees. 20 is a steady climb, 35 is steep.",
+			"default": 20,
+			"min": 5,
+			"max": 35
 		},
 		"modes-title": {
 			"type": "title",

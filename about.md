@@ -8,6 +8,7 @@ Open it with **F5** (PC) or the **alt flow** button in the pause menu (any devic
 - **Live:** your CPS, what the assist is doing right now, and an activity feed of every takeover and hand-back.
 - **Speed:** trigger CPS, hold %, go straight, quick start, match my speed, and the CPS for each gamemode.
 - **Modes:** tap the gamemodes it should help in (ship, wave, UFO and swing by default).
+- **Wave:** ascending and descending wave spam. Pick Level, Up or Down, and how steep (5 to 35 degrees).
 
 The switch at the top turns the assist on and off (F7 does too on PC). The first time you open the panel a short tour walks through the controls. Replay it any time with the **?** button or the **Replay tutorial** setting. **Recommended** on the Speed page puts every speed and mode back to the recommended setup (these are also the defaults). **Panel size** is in the mod's settings.
 
@@ -15,6 +16,7 @@ The switch at the top turns the assist on and off (F7 does too on PC). The first
 - **Go straight (on by default):** in ship, wave, ufo and swing it holds the height you started spamming at, so you fly flat. Turn it off for a fixed rhythm that can drift up or down.
 - **Speed per mode:** ship 20, wave 15, ufo 12, swing 12, others 10 CPS by default.
 - **Match my speed:** instead of fixed speeds, spam at the rate you're clicking, just perfectly even.
+- **Wave path (Wave page):** *Level* is the normal wave spam (it follows Go straight). *Up* and *Down* tilt the zigzag so the trail climbs or falls at the angle you pick, at the same CPS: each click is held longer than it is released (or shorter). It works with gravity flipped and on a mini wave.
 - **Hold %:** how much of each click is held down.
 - **Quick start:** kick in after 2 fast clicks instead of 3.
 - **CPS on screen (Show CPS):** your clicks per second in the bottom-left corner, green while the assist is spamming.

@@ -1,3 +1,7 @@
+# v1.9.0
+- Ascending and descending wave spam. New Wave page: pick Level, Up or Down and an angle from 5 to 35 degrees. Up and Down keep your CPS and tilt the zigzag; Level works as before.
+- The Live page says Climbing or Falling while the assist flies a tilted wave.
+
 # v1.8.2
 - Modes page shows your own icons in your own colors on every tile, including modes that are off.
 
