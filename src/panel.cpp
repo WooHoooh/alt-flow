@@ -28,7 +28,7 @@ constexpr float kColW = (W - 2 * PAD - GAP) / 2;
 
 constexpr char const* kModes[] = {"cube", "ship", "ball", "ufo", "wave", "robot", "spider", "swing"};
 constexpr char const* kModeNames[] = {"Cube", "Ship", "Ball", "UFO", "Wave", "Robot", "Spider", "Swing"};
-constexpr char const* kTabs[] = {"Live", "Speed", "Modes"};
+constexpr char const* kTabs[] = {"Live", "Speed", "Modes", "Wave"};
 
 struct Stepper {
     char const* key;
@@ -141,6 +141,30 @@ void drawSwitch(CCDrawNode* d, CCRect track, bool on) {
     d->drawCircle(knob, h / 2 - 2.5f, on ? ccc4f(1.f, 1.f, 1.f, 1.f) : c4(cMute()), 0, {0, 0, 0, 0}, 16);
 }
 
+// a tiny picture of the wave's trail: dir 0 level, 1 climbing, -1 falling; the tilt is the Angle setting
+void drawTrail(CCDrawNode* d, CCPoint center, float width, int dir, float angleDeg, ccColor4F color) {
+    constexpr int cycles = 3;
+    float slope = std::tan(angleDeg * 3.14159265f / 180.f);
+    float hold = std::clamp(.5f + .5f * dir * slope, .15f, .85f);
+    float cw = width / cycles;
+    CCPoint pts[2 * cycles + 1];
+    pts[0] = {0.f, 0.f};
+    float x = 0.f, y = 0.f, lo = 0.f, hi = 0.f;
+    for (int c = 0; c < cycles; ++c) {
+        x += cw * hold, y += cw * hold;
+        pts[2 * c + 1] = {x, y};
+        x += cw * (1.f - hold), y -= cw * (1.f - hold);
+        pts[2 * c + 2] = {x, y};
+    }
+    for (auto const& q : pts) lo = std::min(lo, q.y), hi = std::max(hi, q.y);
+    float fit = std::min(1.f, 38.f / std::max(1.f, hi - lo)); // keep steep ones inside the tile, same angle
+    CCPoint mid{x / 2, (lo + hi) / 2};
+    for (int i = 0; i < 2 * cycles; ++i) {
+        d->drawSegment(center + (pts[i] - mid) * fit, center + (pts[i + 1] - mid) * fit, .9f, color);
+    }
+    d->drawCircle(center + (pts[2 * cycles] - mid) * fit, 2.2f, color, 0, {0, 0, 0, 0}, 10);
+}
+
 CCRect grow(CCRect r, float by) {
     return {r.origin.x - by, r.origin.y - by, r.size.width + 2 * by, r.size.height + 2 * by};
 }
@@ -155,7 +179,7 @@ CCRect masterRect() { return {W - PAD - 24 - 8 - 24 - 12 - 56, H - HEAD / 2 - 12
 CCRect helpRect() { return {W - PAD - 24 - 8 - 24, H - HEAD / 2 - 12, 24, 24}; }
 CCRect closeRect() { return {W - PAD - 24, H - HEAD / 2 - 12, 24, 24}; }
 CCRect tabsRect() { return {PAD, H - HEAD - 8 - 26, W - 2 * PAD, 26}; }
-float tabSlot() { return (tabsRect().size.width - 6) / 3; }
+float tabSlot() { return (tabsRect().size.width - 6) / 4; }
 float tabCenterX(int tab) { return tabsRect().getMinX() + 3 + tabSlot() * (tab + .5f); }
 CCRect statusCardRect() { return {PAD, TOP - 120, 150, 120}; }
 CCRect showCpsRect() { return {PAD, BOTTOM, 150, 24}; }
@@ -165,6 +189,11 @@ CCRect tileRect(int i) {
     float w = (W - 2 * PAD - 18) / 4, h = 62;
     return {PAD + (i % 4) * (w + 6), TOP - 6 - h * (i / 4 + 1) - 8.f * (i / 4), w, h};
 }
+CCRect pathTileRect(int i) {
+    float w = (W - 2 * PAD - 16) / 3, h = 70;
+    return {PAD + i * (w + 8), TOP - 6 - h, w, h};
+}
+CCRect angleRowRect() { return {PAD, TOP - 6 - 70 - 12 - 22, W - 2 * PAD, 22}; }
 CCRect settingsRect() { return {W - PAD - 82, 5, 82, 20}; }
 CCRect resetRect() { return {W - PAD - 82 - 8 - 112, 5, 112, 20}; }
 
@@ -187,7 +216,7 @@ std::vector<TutorialStep> const& tutorialSteps() {
         {0, {}, "Quick tour", "Spam fast enough and the\nassist takes over at a steady\nspeed. Here's how it works.", nullptr},
         {0, masterRect(), "On / off", "Turns the assist on or off.\nF7 does it too.", "Turns the assist on or off."},
         {0, helpRect(), "Replay", "Tap ? any time to watch\nthis tour again.", nullptr},
-        {0, tabsRect(), "Three pages", "Live, Speed and Modes.\nTap one to switch pages.", nullptr},
+        {0, tabsRect(), "Four pages", "Live, Speed, Modes and Wave.\nTap one to switch pages.", nullptr},
         {0, statusCardRect(), "Live", "Your CPS while you play. It\nturns green and shows the\nassist's speed when it's on.", nullptr},
         {0, {activityRect().getMinX(), TOP - 62, activityRect().size.width, 62}, "Activity",
          "Every takeover and hand-back\nshows up here, with how long\nit lasted and its clicks.", nullptr},
@@ -196,6 +225,8 @@ std::vector<TutorialStep> const& tutorialSteps() {
         {1, join(speedRow(1, 0), speedRow(1, 1)), "CPS by mode", "How fast it clicks in each\nmode. Higher wave CPS makes\na tighter zigzag.", nullptr},
         {1, resetRect(), "Recommended", "Puts every speed and mode\nback to the recommended\nsetup.", nullptr},
         {2, join(tileRect(0), tileRect(3)), "Modes", "Tap a gamemode to let the\nassist help there. Ship, wave,\nUFO and swing start on.", nullptr},
+        {3, join(pathTileRect(0), pathTileRect(2)), "Wave path", "Level keeps the wave flat. Up\nand Down tilt it, like climbing\nor falling wave spam.", nullptr},
+        {3, angleRowRect(), "Angle", "How steeply Up and Down\ntilt the wave, in degrees.", nullptr},
         {0, {}, "You're set", "Open this with F5 or the Alt\nFlow button in the pause menu,\nthen spam a ship section.",
          "Open this with the Alt Flow\nbutton in the pause menu, then\nspam a ship section."},
     };
@@ -382,7 +413,8 @@ protected:
         switch (m_tab) {
             case 0: liveTab(); break;
             case 1: speedTab(); break;
-            default: modesTab(); break;
+            case 2: modesTab(); break;
+            default: waveTab(); break;
         }
         footer();
         if (m_tut >= 0) tutorial();
@@ -443,7 +475,7 @@ protected:
         if (m_pillFrom >= 0) pill->runAction(CCEaseExponentialOut::create(CCMoveTo::create(.25f, {x, y})));
         m_pillFrom = -1.f;
 
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 4; ++i) {
             button({r.getMinX() + 3 + slot * i, r.getMinY(), slot, r.size.height}, [this, i](CCDrawNode*, CCNode* face) {
                 auto sz = face->getContentSize();
                 label(kTabs[i], FontKind::Display, 11.f, i == m_tab ? ccc3(255, 255, 255) : cSub(), sz / 2, {.5f, .5f}, face);
@@ -473,7 +505,7 @@ protected:
 
         std::string a, b;
         if (!live.enabled) a = "Assist is off", b = "Tap ON in the corner";
-        else if (live.active) a = titleCase(live.mode), b = live.straight ? "Flying straight" : "Steady rhythm";
+        else if (live.active) a = titleCase(live.mode), b = live.path ? live.path : live.straight ? "Flying straight" : "Steady rhythm";
         else if (live.inLevel && !live.modeOn) a = fmt::format("{} is off", titleCase(live.mode)), b = "Turn it on in Modes";
         else a = fmt::format("Spam {}+ CPS", num("trigger-cps")), b = "to hand it over";
         label(a, FontKind::Body, 11.f, cText(), {card.getMidX(), card.getMaxY() - 99}, {.5f, .5f}, nullptr, card.size.width - 20);
@@ -567,12 +599,40 @@ protected:
         }
     }
 
+    void waveTab() {
+        static char const* const keys[] = {"straight", "up", "down"};
+        static char const* const names[] = {"Level", "Up", "Down"};
+        std::string path = mod()->getSettingValue<std::string>("wave-path");
+        int angle = num("wave-angle");
+        for (int i = 0; i < 3; ++i) {
+            bool on = path == keys[i];
+            button(pathTileRect(i), [this, i, on, angle](CCDrawNode* d, CCNode* face) {
+                auto sz = face->getContentSize();
+                roundRect(d, {0, 0, sz.width, sz.height}, 9, on ? c4(cAccent(), .16f) : c4(cCard()), 1.f, on ? c4(cAccent(), .9f) : hairline(.07f));
+                drawTrail(d, {sz.width / 2, 44}, 60.f, i == 1 ? 1 : i == 2 ? -1 : 0, static_cast<float>(angle), on ? c4(cAccentSoft()) : c4(cSub()));
+                label(names[i], FontKind::Body, 10.5f, on ? cText() : cSub(), {sz.width / 2, 10}, {.5f, .5f}, face);
+            }, [i] { mod()->setSettingValue<std::string>("wave-path", keys[i]); }, 1.05f);
+        }
+
+        static Stepper const angleStep = {"wave-angle", "Angle (degrees)", 5, 35, 5, ""};
+        stepperRow(angleRowRect(), angleStep);
+        if (path == "straight") { // the angle does nothing while the path is level
+            auto dim = drawNode();
+            roundRect(dim, angleRowRect(), 8, c4(cBg(), .5f));
+            m_root->addChild(dim, 12);
+        }
+        float y = angleRowRect().getMinY() - 14;
+        label("Wave only. Up and Down keep your CPS and tilt the zigzag.", FontKind::Body, 10.f, cMute(), {PAD + 2, y}, {0.f, .5f}, nullptr, W - 2 * PAD - 4);
+        label("Level follows Go straight on the Speed page.", FontKind::Body, 10.f, cMute(), {PAD + 2, y - 13}, {0.f, .5f}, nullptr, W - 2 * PAD - 4);
+    }
+
     void footer() {
         m_draw->drawSegment({PAD, FOOT}, {W - PAD, FOOT}, .5f, hairline(.07f));
         static char const* const hints[] = {
             isMobile() ? "Open this from the pause menu" : "F5 opens this, F7 turns it on or off",
             "Speeds are clicks per second.",
             "It only takes over in the modes you pick.",
+            "Climbing and falling wave spam, same CPS.",
         };
         float right = (m_tab == 1 ? resetRect().getMinX() : settingsRect().getMinX()) - 10;
         label(hints[m_tab], FontKind::Body, 10.f, cMute(), {PAD + 1, 15}, {0.f, .5f}, nullptr, right - PAD);

@@ -16,6 +16,7 @@ struct LiveView {
     double cps = 0.0;      // what it's spamming at
     double yourCps = 0.0;  // how fast you're clicking
     char const* mode = "cube";
+    char const* path = nullptr; // "Climbing" or "Falling" while the wave spam is tilted
 };
 
 LiveView liveView();

@@ -58,22 +58,27 @@ struct Rhythm {
     double nextPress = 0.0;
     unsigned releaseAt = 0;
     bool held = false;
+    double carry = 0.0; // what rounding the hold to whole ticks left over, paid back on the next clicks
 
     void start(unsigned tick) {
         nextPress = tick;
         held = false;
+        carry = 0.0;
     }
 
     // +1 press, -1 release, 0 nothing, for this tick. `holdFraction` of each period is held,
     // always at least one tick pressed and one released so every click registers.
-    int step(unsigned tick, double period, double holdFraction) {
+    // With `dither` the rounding error carries over, so the average hold is exact however few ticks a click has.
+    int step(unsigned tick, double period, double holdFraction, bool dither = false) {
         if (held && tick >= releaseAt) {
             held = false;
             return -1;
         }
         if (!held && tick >= nextPress) {
             int whole = std::max(2, static_cast<int>(period));
-            int hold = std::clamp(static_cast<int>(std::lround(period * holdFraction)), 1, whole - 1);
+            double want = period * holdFraction + (dither ? carry : 0.0);
+            int hold = std::clamp(static_cast<int>(std::lround(want)), 1, whole - 1);
+            if (dither) carry = std::clamp(want - hold, -1.0, 1.0);
             held = true;
             releaseAt = tick + hold;
             nextPress += period;
@@ -143,5 +148,41 @@ struct Leveler {
         return away && sinceSwitch >= minGap ? change(true) : 0;
     }
 };
+
+// Ascending / descending wave spam. The clicks stay as steady as ever, but each one is held longer
+// than it is released (or shorter), so the wave's trail tilts up or down at the angle you pick.
+struct Tilt {
+    double k = 1.0; // vertical speed per unit of horizontal speed: 1 for a normal wave, more for a mini one
+    double lastX = 0.0, lastY = 0.0;
+
+    void start(double x, double y) {
+        lastX = x;
+        lastY = y;
+    }
+
+    // Learns k from how the wave actually moves. Sliding along a block or a teleport says nothing about it.
+    void observe(double x, double y) {
+        double dx = x - lastX, dy = std::abs(y - lastY);
+        lastX = x;
+        lastY = y;
+        if (dx > 0.01 && dx < 50.0 && dy > 0.3 * dx && dy < 4.0 * dx) k = std::clamp(k + (dy / dx - k) * 0.1, 0.5, 4.0);
+    }
+
+    // How much of each click to hold so the trail rises `slope` per unit of run (negative: it falls).
+    // `up` is +1 when holding moves the wave up on screen, -1 when gravity is flipped.
+    double holdFraction(double slope, double up) const {
+        return std::clamp(0.5 + 0.5 * slope * up / k, 0.12, 0.88);
+    }
+};
+
+// One tick of tilted wave spam: +1 press, -1 release, 0 nothing. `down` is what the assist last told the game.
+inline int tiltStep(Tilt& tilt, Rhythm& rhythm, bool down, unsigned tick, double x, double y, double up, double period, double slope) {
+    tilt.observe(x, y);
+    if (rhythm.held != down) { // the last click came from the leveler
+        rhythm.held = down;
+        rhythm.releaseAt = tick;
+    }
+    return rhythm.step(tick, period, tilt.holdFraction(slope, up), true);
+}
 
 } // namespace aa

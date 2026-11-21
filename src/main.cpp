@@ -40,6 +40,8 @@ struct Config {
     bool matchYou = false;
     bool straight = true;
     double hold = .5;
+    int wavePath = 0;        // wave spam: 0 level, +1 climbing, -1 falling
+    double waveAngle = 20.0; // degrees, for climbing and falling
     bool modeOn[ModeCount] = {};
     double modeCps[ModeCount] = {};
 } g_cfg;
@@ -47,6 +49,7 @@ struct Config {
 aa::Detector g_detector;
 aa::Rhythm g_rhythm;
 aa::Leveler g_level;
+aa::Tilt g_tilt;
 bool g_active = false;
 bool g_down = false;     // what the assist last told the game
 bool g_sending = false;
@@ -82,6 +85,9 @@ void readSettings() {
     g_cfg.matchYou = mod->getSettingValue<std::string>("rhythm") == "match your speed";
     g_cfg.straight = mod->getSettingValue<bool>("go-straight");
     g_cfg.hold = mod->getSettingValue<int64_t>("hold-percent") / 100.0;
+    auto path = mod->getSettingValue<std::string>("wave-path");
+    g_cfg.wavePath = path == "up" ? 1 : path == "down" ? -1 : 0;
+    g_cfg.waveAngle = static_cast<double>(mod->getSettingValue<int64_t>("wave-angle"));
     double other = static_cast<double>(mod->getSettingValue<int64_t>("target-cps"));
     for (int m = 0; m < ModeCount; ++m) {
         g_cfg.modeOn[m] = mod->getSettingValue<bool>(fmt::format("mode-{}", kModeKeys[m]));
@@ -115,10 +121,24 @@ bool flyingMode(Mode m) {
     return m == Ship || m == Wave || m == Ufo || m == Swing;
 }
 
-// one tick of the assist: level flight when Go straight is on, steady spam otherwise
+// ascending (+1) or descending (-1) wave spam; 0 for every other mode and for a level wave
+int tiltOf(Mode m) {
+    return m == Wave ? g_cfg.wavePath : 0;
+}
+
+// the rise per run that tilt asks for
+double tiltSlope(int tilt) {
+    return tilt * std::tan(g_cfg.waveAngle * 3.14159265358979323846 / 180.0);
+}
+
+// one tick of the assist: tilted wave spam, level flight when Go straight is on, steady spam otherwise
 int stepAssist(PlayerObject* p, unsigned tick) {
     Mode mode = modeOf(p);
     double period = 240.0 / g_cps;
+    if (int tilt = tiltOf(mode)) {
+        return aa::tiltStep(g_tilt, g_rhythm, g_down, tick, p->getPositionX(), p->getPositionY(), p->m_isUpsideDown ? -1.0 : 1.0, period,
+                            tiltSlope(tilt));
+    }
     if (g_cfg.straight && flyingMode(mode)) {
         g_level.held = g_down;
         double y = p->getPositionY();
@@ -160,7 +180,8 @@ aa::LiveView aa::liveView() {
         v.inLevel = true;
         v.mode = kModeKeys[m];
         v.modeOn = Mod::get()->getSettingValue<bool>(fmt::format("mode-{}", kModeKeys[m]));
-        v.straight = g_active && g_cfg.straight && flyingMode(m);
+        v.straight = g_active && g_cfg.straight && flyingMode(m) && tiltOf(m) == 0;
+        if (g_active && tiltOf(m) != 0) v.path = tiltOf(m) > 0 ? "Climbing" : "Falling";
     }
     return v;
 }
@@ -213,17 +234,21 @@ class $modify(AAGameLayer, GJBaseGameLayer) {
                 g_active = true;
                 g_cps = cpsFor(mode);
                 // the click that triggered it is its first click, so there's no gap at the start
+                int tilt = tiltOf(mode);
+                double up = pl->m_player1->m_isUpsideDown ? -1.0 : 1.0;
                 g_rhythm.start(tick);
-                g_rhythm.step(tick, 240.0 / g_cps, g_cfg.hold);
+                g_rhythm.step(tick, 240.0 / g_cps, tilt ? g_tilt.holdFraction(tiltSlope(tilt), up) : g_cfg.hold, tilt != 0);
                 g_level.start(pl->m_player1->getPositionY());
                 g_level.change(true);
+                g_tilt.start(pl->m_player1->getPositionX(), pl->m_player1->getPositionY());
                 g_down = true;
                 g_lastTick = ~0u;
                 g_since = t;
                 g_clicks = 1;
                 g_lastMode = mode;
-                bool level = g_cfg.straight && flyingMode(mode);
-                note("took over at {:.0f} cps - {}{}", g_detector.rate(needed), kModeKeys[mode], level ? ", flying straight" : "");
+                bool level = tilt == 0 && g_cfg.straight && flyingMode(mode);
+                note("took over at {:.0f} cps - {}{}", g_detector.rate(needed), kModeKeys[mode],
+                     tilt > 0 ? ", climbing" : tilt < 0 ? ", falling" : level ? ", flying straight" : "");
                 return GJBaseGameLayer::handleButton(down, button, isPlayer1);
             }
         }
@@ -281,8 +306,9 @@ class $modify(AAPlayLayer, PlayLayer) {
         if (!label) return;
         label->setVisible(Mod::get()->getSettingValue<bool>("show-cps"));
         if (g_active) {
-            bool level = g_cfg.straight && flyingMode(modeOf(m_player1));
-            label->setString(fmt::format("{} {:.0f} cps", level ? "straight" : "assist", g_cps).c_str());
+            int tilt = tiltOf(modeOf(m_player1));
+            bool level = tilt == 0 && g_cfg.straight && flyingMode(modeOf(m_player1));
+            label->setString(fmt::format("{} {:.0f} cps", tilt > 0 ? "climbing" : tilt < 0 ? "falling" : level ? "straight" : "assist", g_cps).c_str());
             label->setColor({90, 255, 140});
             label->setOpacity(255);
         }
