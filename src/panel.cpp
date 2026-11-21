@@ -148,13 +148,13 @@ void drawTrail(CCDrawNode* d, CCPoint center, float width, int dir, float angleD
     float hold = std::clamp(.5f + .5f * dir * slope, .15f, .85f);
     float cw = width / cycles;
     CCPoint pts[2 * cycles + 1];
-    pts[0] = {0.f, 0.f};
+    pts[0] = CCPoint(0.f, 0.f);
     float x = 0.f, y = 0.f, lo = 0.f, hi = 0.f;
     for (int c = 0; c < cycles; ++c) {
         x += cw * hold, y += cw * hold;
-        pts[2 * c + 1] = {x, y};
+        pts[2 * c + 1] = CCPoint(x, y);
         x += cw * (1.f - hold), y -= cw * (1.f - hold);
-        pts[2 * c + 2] = {x, y};
+        pts[2 * c + 2] = CCPoint(x, y);
     }
     for (auto const& q : pts) lo = std::min(lo, q.y), hi = std::max(hi, q.y);
     float fit = std::min(1.f, 38.f / std::max(1.f, hi - lo)); // keep steep ones inside the tile, same angle
